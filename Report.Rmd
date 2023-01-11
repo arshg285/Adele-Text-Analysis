@@ -1,0 +1,343 @@
+---
+title: "36-668: Coffee Break Experiment 1"
+author: "Arsh Gupta"
+
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 3
+  fig_caption: yes
+  highlight: haddock
+  number_sections: true
+  df_print: paged
+  html_document:  
+    toc: true
+    toc_depth: '3'
+    df_print: paged
+fontfamiy: mathpazo
+editor_options: null
+chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+Adele is a widely revered global artist who has been the recipient of multiple awards. Her songs are characterized by a combination of soulful, deep, and heartfelt emotions, the themes of which are shared across her four albums: 19, 21, 25, and 30. Shared among these is the theme of **love**, which has evolved in the way Adele characterizes it across her songs. The purpose of this report is to analyze the was that Adele's conceptualization of the theme of love has evolved across her different albums and what insights that gives us about the manner in which she communicates about this topic.
+
+# Data
+
+The data set used for this report includes a corpus consisting of 46 text files. Each of those text files includes lyrics to each of Adele's 46 songs spanned across her four albums. The data was manually collected from the web through Google and compiled into a corpus using the `quanteda` library in R.
+
+# Methods
+
+## Data Pre-Processing
+
+There were multiple steps of data processing that were adopted before conducting the analysis which have been described in the next section. We have also obtained summary statistics of our data at multiple steps for different albums to better understand the features of each album. Tables 1, 2, 3, and 4 show a partial summary of the four albums listing the number of tokens and overall sentences in each song of that particular album.
+
+The reason we perform data pre-processing is to prepare our text in a manner that is usable for subsequent analysis.
+
+```{r message = FALSE}
+library(readtext)
+library(quanteda)
+library(cmu.textstat)
+library(quanteda.textstats)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(dplyr)
+library(ggraph)
+library(igraph)
+
+rt1 <- readtext("album_19_1/*.txt",
+                docvarsfrom = "filenames",
+                docvarnames = c("type", "album", "song_rank"))
+
+rt2 <- readtext("album_21_2/*.txt",
+                docvarsfrom = "filenames",
+                docvarnames = c("type", "album", "song_rank"))
+
+rt3 <- readtext("album_25_3/*.txt",
+                docvarsfrom = "filenames",
+                docvarnames = c("type", "album", "song_rank"))
+
+rt4 <- readtext("album_30_4/*.txt",
+                docvarsfrom = "filenames",
+                docvarnames = c("type", "album", "song_rank"))
+
+album1_corpus <- corpus(rt1)
+album2_corpus <- corpus(rt2)
+album3_corpus <- corpus(rt3)
+album4_corpus <- corpus(rt4)
+
+rt_12 <- rbind(rt1, rt2)
+rt_34 <- rbind(rt3, rt4)
+rt_all <- rbind(rt1, rt2, rt3, rt4)
+
+albums_12_corpus <- corpus(rt_12)
+albums_34_corpus <- corpus(rt_34)
+all_albums_corpus <- corpus(rt_all)
+
+knitr::kable(head(album1_corpus %>% summary()), caption = "Partial summary of Album 1: 19")
+
+knitr::kable(head(album2_corpus %>% summary()), caption = "Partial summary of Album 2: 21")
+
+knitr::kable(head(album3_corpus %>% summary()), caption = "Partial summary of Album 3: 25")
+
+knitr::kable(head(album4_corpus %>% summary()), caption = "Partial summary of Album 4: 30")
+```
+
+The data is then further processed to remove punctuation, symbols, and numbers from the tokens obtained. All the tokens are also changed into lowercase to ensure consistency and avoid redundancy. As a next step, we have combined all multi-word expressions into one token using the mwe list called `multiword_expressions` as found in the `cmu.textstat` library.
+
+## Summary Statistics
+
+At this point, we have combined all tokens from the first two albums and last two albums into a single object leaving us with a total of two token objects since we will be analyzing the conceptualization of love as found in Adele's first two albums versus the last two albums.
+
+### Token Frequency
+
+At this point, we compare the frequency of most common tokens across different albums. In the Results section, Table 5 shows the most common tokens across all albums, and Tables 6 and 7 show the most frequent tokens specifically within the first two and last two albums respectively.
+
+We compute the token frequency because it is the most rudimentary way to assessing the common themes and subjects across Adele's songs.
+
+### Dispersion Measures
+
+As a next step, we compute the dispersion measures using AF and DP. In the Results section, Table 8 shows the dispersion measures of most common tokens across all albums, and Tables 9 and 10 show the dispersion measures for most frequent tokens specifically within the first two and last two albums respectively.
+
+We compute the dispersion measures because it enables us to see if certain tokens that appear more commonly are perhaps localized or evenly distributed. This will pave the way for further research questions as to whether certain songs focus on certain themes or not.
+
+## Collocational Network Plot
+
+As the final step in our analysis, we compute collocates for each token in the two corpora containing songs from first two and last two albums respectively. These collocates have been computed using the mutual information statistic, and once we obtain that, we plot two graphs; one for token **love** and one for token **heart** to understand how the information conveyed by Adele about those two words has changed across the two sets of albums and whether there are any commonalities.
+
+# Results
+
+## Tokens Frequency
+
+Tokens \textbf{i}, \textbf{you}, and \textbf{the} are the most common across corpora containing first two and last two albums. Token \textbf{i} occurs much more frequently in the last two albums versus the first two, suggesting that there is a greater shift towards personification in the songs from Adele's last two albums.
+
+```{r message = FALSE}
+album1_tokens <- tokens(album1_corpus,
+                        include_docvars = TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+album1_tokens <- tokens_tolower(album1_tokens)
+
+album2_tokens <- tokens(album2_corpus,
+                        include_docvars = TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+album2_tokens <- tokens_tolower(album2_tokens)
+
+album3_tokens <- tokens(album3_corpus,
+                        include_docvars = TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+album3_tokens <- tokens_tolower(album3_tokens)
+
+album4_tokens <- tokens(album4_corpus,
+                        include_docvars = TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE, what = "word")
+
+album4_tokens <- tokens_tolower(album4_tokens)
+
+all_albums_tokens <- tokens(all_albums_corpus,
+                        include_docvars=TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+albums_12_tokens <- tokens(albums_12_corpus,
+                        include_docvars=TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+albums_34_tokens <- tokens(albums_34_corpus,
+                        include_docvars=TRUE,
+                        remove_punct = TRUE,
+                        remove_numbers = TRUE,
+                        remove_symbols = TRUE,
+                        what = "word")
+
+album1_tokens <- tokens_compound(album1_tokens,
+                                 pattern = phrase(multiword_expressions))
+
+album2_tokens <- tokens_compound(album2_tokens,
+                                 pattern = phrase(multiword_expressions))
+
+album3_tokens <- tokens_compound(album3_tokens,
+                                 pattern = phrase(multiword_expressions))
+
+album4_tokens <- tokens_compound(album4_tokens,
+                                 pattern = phrase(multiword_expressions))
+
+all_albums_tokens <- tokens_compound(all_albums_tokens,
+                                     pattern = phrase(multiword_expressions))
+
+albums_12_tokens <- tokens_compound(albums_12_tokens,
+                                    pattern = phrase(multiword_expressions))
+
+albums_34_tokens <- tokens_compound(albums_34_tokens,
+                                    pattern = phrase(multiword_expressions))
+
+album1_dfm <- dfm(album1_tokens)
+album2_dfm <- dfm(album2_tokens)
+album3_dfm <- dfm(album3_tokens)
+album4_dfm <- dfm(album4_tokens)
+
+all_albums_dfm <- dfm(all_albums_tokens)
+albums_12_dfm <- dfm(albums_12_tokens)
+albums_34_dfm <- dfm(albums_34_tokens)
+
+prop_album1_dfm <- dfm_weight(album1_dfm, scheme = "prop")
+prop_album2_dfm <- dfm_weight(album2_dfm, scheme = "prop")
+prop_album3_dfm <- dfm_weight(album3_dfm, scheme = "prop")
+prop_album4_dfm <- dfm_weight(album4_dfm, scheme = "prop")
+
+prop_all_albums_dfm <- dfm_weight(all_albums_dfm, scheme = "prop")
+prop_albums_12_dfm <- dfm_weight(albums_12_dfm, scheme = "prop")
+prop_albums_34_dfm <- dfm_weight(albums_34_dfm, scheme = "prop")
+
+freq_df <- textstat_frequency(all_albums_dfm) %>%
+  data.frame(stringsAsFactors = F) %>%
+  dplyr::select(feature, frequency) %>%
+  rename("Token" = "feature", "Frequency" = "frequency")
+
+kable(head(freq_df), caption = "Most Frequent Tokens Across All Albums")
+
+freq_df_12 <- textstat_frequency(albums_12_dfm) %>%
+  data.frame(stringsAsFactors = F) %>%
+  dplyr::select(feature, frequency) %>%
+  rename("Token" = "feature", "Frequency" = "frequency")
+
+kable(head(freq_df_12), caption = "Most Frequent Tokens Across First Two Albums")
+
+freq_df_34 <- textstat_frequency(albums_34_dfm) %>%
+  data.frame(stringsAsFactors = F) %>%
+  dplyr::select(feature, frequency) %>%
+  rename("Token" = "feature", "Frequency" = "frequency")
+
+kable(head(freq_df_34), caption = "Most Frequent Tokens Across Last Two Albums")
+```
+
+## Dispersion Measures
+
+None of the values of dispersion measures are surprisingly high, suggesting that the most common tokens across the two corpora are even distributed across Adele's songs.
+
+```{r}
+dispersion_all_albums <- all_albums_dfm %>% dispersions_all()
+dispersion_albums_12 <- albums_12_dfm %>% dispersions_all()
+dispersion_albums_34 <- albums_34_dfm %>% dispersions_all()
+
+kable(head(dispersion_all_albums[, c(1, 2, 9)]), caption = "Dispersion Values of Most Frequent Tokens Across All Albums", digits = 2)
+kable(head(dispersion_albums_12[, c(1, 2, 9)]), caption = "Dispersion Values of Most Frequent Tokens Across First Two Albums", digits = 2)
+kable(head(dispersion_albums_34[, c(1, 2, 9)]), caption = "Dispersion Values of Most Frequent Tokens Across Last Two Albums", digits = 2)
+```
+
+## Collocational Network Plot
+
+We obtain two collocational network plots. The left and right clusters of tokens in Graph 1 show the collocates having highest MI values for token **love** in songs from the first two and last two albums respectively. Graph 2 shows a similar relationship but for the token **heart**. We choose these two tokens because seem like reasonable choice of words that Adele would use to communicate about love and related themes.
+
+One interesting insight that we observe is that most tokens containing high mutual information about token **love** from the last two albums (scars, forgive, hurts) tend to have somewhat of a negative/painful connotation relative to tokens from the first two albums.
+
+On the other hand, collocates for token **heart** across all albums seem to be have more sad themes (cried, wish, blood, breaking, cry, heal, stain) suggesting that the occurrence of **heart** throughout all of Adele's songs happens within a sad or painful context.
+
+We see that for the token **love**, songs from first two and last two albums share three common collocates, namely: **ain't**, **say**, and **if**.
+
+```{r message = FALSE, fig.height = 4}
+albums_12_love_collocates <- collocates_by_MI(albums_12_tokens, "love") %>%
+  filter(col_freq >= 4 & MI_1 >= 4)
+
+albums_12_heart_collocates <- collocates_by_MI(albums_12_tokens, "heart") %>%
+  filter(col_freq >= 4 & MI_1 >= 4)
+
+albums_34_love_collocates <- collocates_by_MI(albums_34_tokens, "love") %>%
+  filter(col_freq >= 4 & MI_1 >= 4)
+
+albums_34_heart_collocates <- collocates_by_MI(albums_34_tokens, "heart") %>%
+  filter(col_freq >= 4 & MI_1 >= 4)
+
+net <- col_network(albums_12_love_collocates, albums_34_love_collocates)
+
+ggraph(net, layout = "stress") +
+  
+  geom_edge_link(color = "grey80", alpha = 0.75) +
+  
+  geom_node_point(aes(alpha = node_weight, size = 3, color = n_intersects)) +
+  
+  geom_node_text(aes(label = label), repel = T, size = 3) +
+  
+  scale_alpha(range = c(0.2, 0.9)) +
+  
+  theme_graph(base_family = "Helvetica", title_size = 12) +
+  
+  theme(legend.position = "none") +
+  
+  labs(title = "Graph 1: Collocates for token love across first two and last two albums")
+```
+
+Similarly, for the token **heart**, songs from first two and last two albums share four common collocates, namely: **your**, **out**, **and**, and **my**.
+
+```{r message = FALSE, fig.height = 4}
+net <- col_network(albums_12_heart_collocates, albums_34_heart_collocates)
+
+ggraph(net, layout = "stress") +
+  
+  geom_edge_link(color = "grey80", alpha = 0.75) +
+  
+  geom_node_point(aes(alpha = node_weight, size = 3, color = n_intersects)) +
+  
+  geom_node_text(aes(label = label), repel = T, size = 3) +
+  
+  scale_alpha(range = c(0.2, 0.9)) +
+  
+  
+  theme_graph(base_family = "Helvetica", title_size = 12) +
+  
+  theme(legend.position = "none") +
+  
+  labs(title = "Graph 2: Collocates for token heart across first two and last two albums")
+```
+
+# Discussion
+
+## Conclusions from findings
+
+Our analysis does yield us some interesting insights about how some shared themes in Adele's songs have evolved across the different albums.
+
+The fact that most collocates for **love** from the last two albums convey a sad context and that collocates for **heart** from almost every album convey that context suggests that Adele's conceptualization of love has progressed from being less to more sad across various songs in her four albums.
+
+From the first collocational network plot, we see that in songs from her first two albums, the highest mutual information about token **love** is contained in **ain't**, **say**, and **if**.
+
+\begin{itemize}
+  \item The first one, \textbf{ain't} suggests that the theme is conveyed through some sort of a comparison or contrast, where Adele establishes a parallel between love and something that shouldn't be.
+  \item The second collocate, \textbf{say}, suggests something actionable, with an emphasis on vocalizing the presence of love.
+  \item The third one, \textbf{if} hints at some conditional implication that would be contingent upon the presence or existence of love.
+\end{itemize}
+
+From the second collocational network plot, we see that in songs from her first two albums, the highest mutual information about token \textbf{heart} is contained in \textbf{your}, \textbf{out}, \textbf{and}, and \textbf{my}.
+
+\begin{itemize}
+  \item The collocates, \textbf{your} and \textbf{my} suggests that the occurrence of token \textbf{heart} is within a dependency context, possibly with another person.
+  \item The second one, \textbf{out} might be referring to a phrase such as "put your heart out" or something similar, suggesting that there is an underlying theme of encouraging expression, emotion, and vulnerability.
+\end{itemize}
+
+## Scope for further study and limitations
+
+While this analysis is a good first step in analyzing the underlying themes within Adele's songs, there is definitely a scope of further study. The level of analysis conducted here is pretty surface level and does not account for external factors that might influence the manner in which certain themes are conveyed in Adele's songs. Some variables that might influence this are the socio-economic climate of the time her album was released, any possible intended purpose of the album, etc.
